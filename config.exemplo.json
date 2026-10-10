@@ -1,0 +1,5 @@
+{
+  "nome": "SeuNome",
+  "vozes": {"claude": "pt-BR-ThalitaMultilingualNeural", "codex": "pt-BR-AntonioNeural"},
+  "voz_mac": "Luciana"
+}

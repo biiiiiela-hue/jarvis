@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jarvis</title>
+<style>
+  :root {
+    --caramelo: #c8843f;
+    --caramelo-escuro: #8a5124;
+    --orelha: #5c3418;
+    --branco: #fbf6ee;
+    --nariz: #231a15;
+    --balao: rgba(22, 22, 26, 0.94);
+    --balao-texto: #f4f1ec;
+    --suave: #a9a39b;
+    --linha: rgba(255,255,255,.12);
+    --campo: rgba(255,255,255,.08);
+    --claude: #d97757;
+    --codex: #6aa7ff;
+    --ouvindo: #4fd18b;
+  }
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; }
+  body.navegador { background: #2b2b30; }
+
+  #palco { position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: flex-end; justify-content: flex-end; padding: 12px; }
+
+  .cartao { background: var(--balao); color: var(--balao-texto); border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35); position: relative; font-size: 14px; line-height: 1.35;
+    transition: opacity .3s ease, transform .3s ease; transform-origin: bottom right; }
+  .fechar { position: absolute; top: 6px; right: 8px; width: 22px; height: 22px; border-radius: 11px;
+    border: 0; background: transparent; color: var(--suave); font-size: 16px; line-height: 22px;
+    cursor: pointer; padding: 0; }
+  .fechar:hover { background: var(--campo); color: var(--balao-texto); }
+
+  /* balão da conversa */
+  #balao { max-width: 300px; padding: 10px 30px 12px 14px; margin-right: 70px; margin-bottom: -6px; }
+  #balao::after { content: ""; position: absolute; right: 26px; bottom: -8px; width: 16px; height: 16px;
+    background: var(--balao); transform: rotate(45deg); border-radius: 3px; }
+  #palco.repouso #balao, #palco.com-lista #balao { display: none; }
+  #quem { font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+    color: var(--suave); margin-bottom: 3px; display: flex; gap: 6px; align-items: center; }
+  .ponto { width: 7px; height: 7px; border-radius: 50%; background: var(--suave); flex: none; }
+  .claude .ponto { background: var(--claude); }
+  .codex .ponto { background: var(--codex); }
+  #ouvido { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--linha);
+    color: var(--ouvindo); font-size: 13px; display: none; }
+  #ouvido.tem { display: block; }
+  #status { font-size: 12px; color: var(--suave); margin-top: 6px; min-height: 16px; }
+  #agora-nao { margin-top: 8px; border: 1px solid var(--linha); background: var(--campo);
+    color: var(--balao-texto); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12px;
+    cursor: pointer; }
+  #agora-nao:hover { border-color: var(--claude); }
+
+  /* lista de pendências (clique no número) */
+  #lista { width: 320px; max-height: 230px; box-sizing: border-box; overflow-y: auto; padding: 10px 12px 8px;
+    margin-right: 40px; margin-bottom: 4px; display: none; }
+  #lista.aberta { display: block; }
+  #lista h3 { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .03em;
+    text-transform: uppercase; color: var(--suave); }
+  .item { padding: 7px 0; border-top: 1px solid var(--linha); }
+  .item .topo { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--suave);
+    text-transform: uppercase; letter-spacing: .03em; font-weight: 600; }
+  .item .frase { margin: 3px 0 6px; font-size: 13px; }
+  .item .acoes { display: flex; gap: 6px; }
+  .item input { flex: 1; min-width: 0; background: var(--campo); border: 1px solid var(--linha);
+    color: var(--balao-texto); border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 13px; outline: none; }
+  .item input:focus { border-color: var(--ouvindo); }
+  .item button.mic { flex: none; width: 30px; border-radius: 8px; border: 1px solid var(--linha);
+    background: var(--campo); color: var(--balao-texto); cursor: pointer; font-size: 14px; }
+  .item button.mic:hover { border-color: var(--ouvindo); }
+  .vazio { color: var(--suave); font-size: 13px; padding: 4px 0; }
+
+  /* lembretes de comandos (botão "?") */
+  #ajuda { width: 290px; max-height: 240px; overflow-y: auto; box-sizing: border-box;
+    padding: 10px 12px 10px; margin-right: 40px; margin-bottom: 4px;
+    display: none; font-size: 12.5px; }
+  #ajuda.aberta { display: block; }
+  #palco.com-ajuda #balao, #palco.com-ajuda #lista { display: none; }
+  #ajuda h3 { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .03em;
+    text-transform: uppercase; color: var(--suave); }
+  #ajuda dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; }
+  #ajuda dt { color: var(--ouvindo); white-space: nowrap; }
+  #ajuda dd { margin: 0; color: var(--balao-texto); }
+  #ajuda .modo { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--linha); color: var(--suave); }
+  #ajuda .modo b { color: var(--balao-texto); }
+  #botao-ajuda { position: absolute; bottom: 10px; left: 8px; width: 22px; height: 22px; border-radius: 11px;
+    border: 1px solid var(--linha); background: var(--balao); color: var(--suave); font-size: 12px;
+    font-weight: 700; cursor: pointer; z-index: 2; padding: 0; opacity: .75; }
+  #botao-ajuda:hover { opacity: 1; color: var(--balao-texto); }
+
+  /* beagle */
+  #cao { width: 150px; height: 150px; position: relative; cursor: pointer;
+    transition: transform .35s cubic-bezier(.2,.9,.3,1.3); transform-origin: bottom right; }
+  #palco.repouso #cao { transform: scale(.72); }
+  #palco.repouso #corpo { animation-duration: 5s; }
+  #selo { position: absolute; top: 18px; left: 18px; min-width: 24px; height: 24px; border-radius: 12px;
+    background: var(--claude); color: #fff; font-size: 13px; font-weight: 700; display: none;
+    align-items: center; justify-content: center; padding: 0 7px; box-sizing: border-box;
+    box-shadow: 0 2px 8px rgba(0,0,0,.35); z-index: 2; cursor: pointer; }
+  #selo.tem { display: flex; }
+
+  /* anel verde: segue o volume da voz do usuário enquanto o Jarvis está captando */
+  #anel { position: absolute; inset: 14px; border-radius: 50%; border: 3px solid var(--ouvindo);
+    opacity: 0; transform: scale(.9); transition: transform .09s linear, opacity .09s linear,
+    box-shadow .09s linear; pointer-events: none; }
+
+  svg { width: 100%; height: 100%; overflow: visible; }
+  #corpo { animation: respira 3.2s ease-in-out infinite; transform-origin: 100px 170px; }
+  @keyframes respira { 50% { transform: translateY(-3px); } }
+
+  .orelha { transition: transform .3s ease; }
+  #orelha-e { transform-origin: 62px 70px; }
+  #orelha-d { transform-origin: 138px 70px; }
+  .falando #orelha-e { animation: balancaE .5s ease-in-out infinite alternate; }
+  .falando #orelha-d { animation: balancaD .5s ease-in-out infinite alternate; }
+  @keyframes balancaE { from { transform: rotate(4deg); } to { transform: rotate(-8deg); } }
+  @keyframes balancaD { from { transform: rotate(-4deg); } to { transform: rotate(8deg); } }
+  .ouvindo #orelha-e { transform: rotate(-28deg); }
+  .ouvindo #orelha-d { transform: rotate(28deg); }
+
+  /* boca: abre conforme o volume da própria fala (sincronizada pelo envelope do áudio) */
+  #boca { transform-origin: 100px 128px; transform: scaleY(.15); }
+  #lingua { opacity: 0; transition: opacity .2s; }
+  .entendeu #lingua { opacity: 1; }
+
+  .olho { transform-origin: center; transform-box: fill-box; animation: pisca 4.5s infinite; }
+  @keyframes pisca { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+  .pensando #cabeca { animation: inclina 1.2s ease-in-out infinite alternate; transform-origin: 100px 110px; }
+  @keyframes inclina { from { transform: rotate(-6deg); } to { transform: rotate(6deg); } }
+
+  #rabo { transform-origin: 152px 170px; animation: abana 1.6s ease-in-out infinite; }
+  .entendeu #rabo, .falando #rabo { animation-duration: .35s; }
+  @keyframes abana { 0%,100% { transform: rotate(-10deg); } 50% { transform: rotate(18deg); } }
+
+  #pontos { opacity: 0; }
+  .pensando #pontos { opacity: 1; }
+  #pontos circle { animation: ponto 1s infinite; }
+  #pontos circle:nth-child(2) { animation-delay: .15s; }
+  #pontos circle:nth-child(3) { animation-delay: .3s; }
+  @keyframes ponto { 50% { transform: translateY(-5px); } }
+</style>
+</head>
+<body>
+<div id="palco" class="repouso">
+  <div id="ajuda" class="cartao">
+    <button class="fechar" id="fechar-ajuda" title="Fechar">×</button>
+    <h3>Comandos</h3>
+    <dl>
+      <dt>“Ei, Jarvis”</dt><dd>chamar e ouvir pendentes</dd>
+      <dt>“Esconde”</dt><dd>sumir até o próximo aviso</dd>
+      <dt>“Modo conversa”</dt><dd>falo e abro o microfone</dd>
+      <dt>“Modo aviso”</dt><dd>só uma frase, sem microfone</dd>
+      <dt>“Modo discreto”</dt><dd>só sininho e número</dd>
+      <dt>Agora não</dt><dd>paro e guardo a pergunta</dd>
+      <dt>O número</dt><dd>ver e responder escrevendo</dd>
+    </dl>
+    <div class="modo">Modo agora: <b id="modo-agora">—</b></div>
+  </div>
+  <div id="lista" class="cartao">
+    <button class="fechar" id="fechar-lista" title="Fechar lista">×</button>
+    <h3>Pendências</h3>
+    <div id="itens"></div>
+  </div>
+  <div id="balao" class="cartao">
+    <button class="fechar" id="dispensar" title="Dispensar o Jarvis">×</button>
+    <div id="quem"><span class="ponto"></span><span id="quem-nome">Jarvis</span></div>
+    <div id="texto"></div>
+    <div id="ouvido"></div>
+    <div id="status"></div>
+    <button id="agora-nao" title="Para de falar e de ouvir; a pergunta fica guardada">Agora não</button>
+  </div>
+  <div id="cao">
+    <div id="selo" title="Ver pendências"></div>
+    <button id="botao-ajuda" title="Comandos do Jarvis">?</button>
+    <div id="anel"></div>
+    <svg viewBox="0 0 200 200" aria-label="Jarvis, o beagle">
+      <g id="corpo">
+        <path id="rabo" d="M150 170 q22 -18 18 -46" stroke="var(--caramelo-escuro)" stroke-width="9"
+              stroke-linecap="round" fill="none"/>
+        <path d="M166 128 q3 -8 1 -10" stroke="var(--branco)" stroke-width="8"
+              stroke-linecap="round" fill="none"/>
+        <ellipse cx="100" cy="178" rx="52" ry="22" fill="var(--caramelo)"/>
+        <ellipse cx="100" cy="182" rx="26" ry="16" fill="var(--branco)"/>
+        <g id="cabeca">
+          <g id="orelha-e" class="orelha">
+            <path d="M66 62 C40 62 34 100 42 132 C46 146 62 146 66 132 C70 112 74 84 66 62Z" fill="var(--orelha)"/>
+          </g>
+          <g id="orelha-d" class="orelha">
+            <path d="M134 62 C160 62 166 100 158 132 C154 146 138 146 134 132 C130 112 126 84 134 62Z" fill="var(--orelha)"/>
+          </g>
+          <path d="M100 40 C140 40 150 72 148 100 C146 132 128 150 100 150 C72 150 54 132 52 100 C50 72 60 40 100 40Z"
+                fill="var(--caramelo)"/>
+          <path d="M92 44 C96 40 104 40 108 44 L112 96 L88 96Z" fill="var(--branco)"/>
+          <ellipse cx="100" cy="120" rx="34" ry="28" fill="var(--branco)"/>
+          <g class="olho"><circle cx="80" cy="88" r="7" fill="var(--nariz)"/><circle cx="82.5" cy="85.5" r="2.2" fill="#fff"/></g>
+          <g class="olho"><circle cx="120" cy="88" r="7" fill="var(--nariz)"/><circle cx="122.5" cy="85.5" r="2.2" fill="#fff"/></g>
+          <ellipse cx="100" cy="108" rx="11" ry="8" fill="var(--nariz)"/>
+          <ellipse cx="96" cy="105" rx="3" ry="2" fill="#fff" opacity=".5"/>
+          <path d="M100 116 v6 M100 122 q-8 6 -14 2 M100 122 q8 6 14 2" stroke="var(--nariz)"
+                stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <g id="boca"><ellipse cx="100" cy="132" rx="9" ry="7" fill="#5a1f1f"/></g>
+          <ellipse id="lingua" cx="100" cy="137" rx="6" ry="7" fill="#e8737a"/>
+        </g>
+        <g id="pontos" fill="var(--balao-texto)">
+          <circle cx="160" cy="40" r="4"/><circle cx="173" cy="40" r="4"/><circle cx="186" cy="40" r="4"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+</div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const palco = $("palco"), cao = $("cao"), anel = $("anel"), boca = $("boca");
+  const ponte = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jarvis;
+  if (!ponte) document.body.classList.add("navegador");
+  const STATUS = { falando: "falando…",
+                   ouvindo: "pode falar, estou ouvindo", pensando: "entendendo…" };
+  let ultimo = {}, versao = -1, visivel = null, entendeuAte = 0, ultimoOuvido = "", boot = "",
+      assinaturaPend = "", listaAberta = false, bocaAtual = null;
+
+  const enviar = (msg) => { if (ponte) ponte.postMessage(msg); };
+  window.addEventListener("error", (ev) => enviar({ erro: `${ev.message} (linha ${ev.lineno})` }));
+  const post = (caminho, dados) => fetch(caminho, { method: "POST", body: JSON.stringify(dados || {}) });
+
+  function classeAgente(nome) {
+    const n = (nome || "").toLowerCase();
+    return n.startsWith("codex") ? "codex" : n.startsWith("claude") ? "claude" : "";
+  }
+
+  function aplicar(e) {
+    const ativo = e.modo !== "oculto";
+    palco.classList.toggle("repouso", !ativo);
+    cao.className = e.modo + (Date.now() < entendeuAte ? " entendeu" : "");
+    if (e.texto) $("texto").textContent = e.texto;
+    const ag = e.agente || "Jarvis";
+    $("quem-nome").textContent = ag;
+    $("quem").className = classeAgente(ag);
+    $("ouvido").textContent = e.ouvido ? "Você: " + e.ouvido : "";
+    $("ouvido").classList.toggle("tem", !!e.ouvido);
+    $("status").textContent = STATUS[e.modo] || "";
+    const n = (e.pendentes || []).length;
+    $("modo-agora").textContent = e.modo_jarvis || "—";
+    $("selo").textContent = n;
+    $("selo").classList.toggle("tem", n > 0);
+    if (n === 0 && listaAberta) fecharLista();
+    if (listaAberta) desenharLista(e.pendentes);
+    bocaAtual = e.boca || null;
+    // dispensado: some da tela até o próximo "Ei, Jarvis"
+    const querVisivel = !(e.dispensado && !ativo);
+    if (querVisivel !== visivel) { visivel = querVisivel; enviar({ visivel }); }
+    informarAreas();
+  }
+
+  // ---- lista de pendências ----
+  function desenharLista(pend) {
+    const itens = $("itens");
+    const focado = document.activeElement && document.activeElement.dataset.id;
+    if (focado) return;                       // não apaga o que o usuário está digitando
+    itens.innerHTML = "";
+    if (!pend || !pend.length) { itens.innerHTML = '<div class="vazio">Nada pendente.</div>'; return; }
+    for (const p of pend) {
+      const d = document.createElement("div");
+      d.className = "item";
+      const frase = p.frase.length > 140 ? p.frase.slice(0, 137) + "…" : p.frase;
+      d.innerHTML = `<div class="topo ${classeAgente(p.agente)}"><span class="ponto"></span>
+          <span></span></div><div class="frase"></div>
+          <div class="acoes"><button class="mic" title="Responder falando">🎤</button>
+          <input placeholder="Responder escrevendo… (Enter)"></div>`;
+      d.querySelector(".topo span:last-child").textContent = `${p.agente} · ${p.projeto}`;
+      d.querySelector(".frase").textContent = frase;
+      if (p.canal === false) {   // reinício cortou o caminho de volta: só dá para responder na conversa
+        d.querySelector(".acoes").innerHTML = '<div class="vazio">Responda direto na conversa.</div>';
+        itens.appendChild(d);
+        continue;
+      }
+      const campo = d.querySelector("input");
+      campo.dataset.id = p.id;
+      campo.addEventListener("focus", () => enviar({ foco: true }));
+      campo.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" && campo.value.trim()) {
+          post("/responder", { id: p.id, texto: campo.value.trim() });
+          campo.blur(); d.remove();
+        }
+      });
+      d.querySelector(".mic").addEventListener("click", () => {
+        post("/responder_voz", { id: p.id }); fecharLista();
+      });
+      itens.appendChild(d);
+    }
+  }
+  function abrirLista() { listaAberta = true; $("lista").classList.add("aberta"); palco.classList.add("com-lista"); desenharLista(ultimo.pendentes); informarAreas(); }
+  function fecharLista() { listaAberta = false; $("lista").classList.remove("aberta"); palco.classList.remove("com-lista"); informarAreas(); }
+
+  let ajudaAberta = false;
+  function alternarAjuda() {
+    ajudaAberta = !ajudaAberta;
+    $("ajuda").classList.toggle("aberta", ajudaAberta);
+    palco.classList.toggle("com-ajuda", ajudaAberta);
+    informarAreas();
+  }
+  $("botao-ajuda").addEventListener("click", (ev) => { ev.stopPropagation(); alternarAjuda(); });
+  $("fechar-ajuda").addEventListener("click", alternarAjuda);
+  $("selo").addEventListener("click", (ev) => { ev.stopPropagation(); listaAberta ? fecharLista() : abrirLista(); });
+  $("fechar-lista").addEventListener("click", fecharLista);
+  $("dispensar").addEventListener("click", () => post("/dispensar"));
+  $("agora-nao").addEventListener("click", () => post("/adiar"));
+  cao.addEventListener("click", () => {
+    if (ultimo.modo === "falando") post("/interromper");          // clique interrompe a fala
+    else if ((ultimo.pendentes || []).length) listaAberta ? fecharLista() : abrirLista();
+  });
+
+  // áreas clicáveis: o app só segura o clique em cima delas; o resto passa para o que está atrás
+  function informarAreas() {
+    const areas = [];
+    for (const el of [cao, $("selo"), $("lista"), $("balao"), $("ajuda"), $("botao-ajuda")]) {
+      const r = el.getBoundingClientRect();
+      const st = getComputedStyle(el);
+      if (r.width && r.height && st.visibility !== "hidden" && st.display !== "none" && st.opacity !== "0")
+        areas.push([r.left, r.top, r.width, r.height]);
+    }
+    enviar({ areas });
+  }
+  setInterval(informarAreas, 500);
+
+  // ---- animação contínua: boca sincronizada e anel verde ----
+  function quadro() {
+    let v = 0;
+    if (bocaAtual && bocaAtual.env) {
+      const i = Math.floor((Date.now() - bocaAtual.t0) / bocaAtual.passo);
+      v = bocaAtual.env[i] || 0;
+    }
+    boca.style.transform = `scaleY(${0.15 + 0.85 * v})`;
+    requestAnimationFrame(quadro);
+  }
+  requestAnimationFrame(quadro);
+
+  function pulsar(nivel) {
+    if (nivel < 0) { anel.style.opacity = 0; return; }          // não está ouvindo
+    anel.style.opacity = 0.25 + nivel * 0.75;                   // microfone aberto: anel fraquinho
+    anel.style.transform = `scale(${0.9 + nivel * 0.45})`;
+    anel.style.boxShadow = `0 0 ${nivel * 22}px var(--ouvindo)`;
+  }
+
+  async function ciclo() {
+    try {
+      const r = await fetch("/estado", { cache: "no-store" });
+      const e = await r.json();
+      if (boot && e.boot !== boot) { location.reload(); return; }   // jarvisd reiniciou: pega a tela nova
+      boot = e.boot;
+      if (e.ouvido && e.ouvido !== ultimoOuvido) entendeuAte = Date.now() + 1800;
+      ultimoOuvido = e.ouvido || "";
+      const assin = (e.pendentes || []).map((p) => p.id).join(",");
+      if (e.versao !== versao || assin !== assinaturaPend || Date.now() < entendeuAte + 200) {
+        versao = e.versao; assinaturaPend = assin; ultimo = e; aplicar(e);
+      }
+      ultimo = e;
+      pulsar(e.modo === "ouvindo" ? (e.nivel || 0) : -1);
+    } catch (_) {}
+    setTimeout(ciclo, 90);
+  }
+  ciclo();
+</script>
+</body>
+</html>

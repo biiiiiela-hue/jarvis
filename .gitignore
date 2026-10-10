@@ -1,0 +1,27 @@
+# pessoal: nunca sobe
+config.json
+jarvis.log
+jarvisd.out
+codex_continuacoes.log
+fila.json
+modo.txt
+voz_*.txt
+OFF
+.lock
+*.wav
+*.mp3
+*.aiff
+tmp*
+
+# gerado na instalação
+models/
+venv/
+venv-ww/
+app/Jarvis.app/
+__pycache__/
+
+# backups locais
+*_antes_*.py
+*_antes_*.swift
+jarvis_hook_v1.py
+*.antes-do-jarvis
