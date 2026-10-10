@@ -225,8 +225,13 @@ def tratar_comando(texto):
         dispensar()
         return True
     t = jc.normalizar(texto)
+    palavras = len(t.split())
+    # frase curta ("modo aviso") ou frase longa claramente dirigida ao Jarvis
+    # ("Jarvis, a partir de agora quero você no modo discreto")
+    pedido = any(x in t for x in ("jarvis", "quero", "fique", "fica ", "entre", "entra ", "muda",
+                                  "troca", "coloca", "a partir de agora", "ativa", "liga "))
     for m in MODOS:
-        if f"modo {m}" in t and len(t.split()) <= 6:
+        if f"modo {m}" in t and (palavras <= 6 or (pedido and palavras <= 25)):
             with open(ARQ_MODO, "w") as f:
                 f.write(m)
             jc.log(f"modo: {m}")
